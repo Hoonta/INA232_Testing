@@ -41,32 +41,50 @@ TwoWire wire_callers[2] = {
 uint16_t writeRegister(const INA232 *csa, uint8_t reg, uint16_t value)
 {
   csa->wire->beginTransmission(csa->address);
-  Wire1.write(reg);
-  Wire1.write(value >> 8);
-  Wire1.write(value & 0xFF);
-  return Wire1.endTransmission(); //Returns 0:success; 1:data too long to fit in transmit buffer; 2:received NACK on transmit of address; 3:received NACK on transmit of data; 4:other error; 5:timeout
+  csa->wire->write(reg);
+  csa->wire->write(value >> 8);
+  csa->wire->write(value & 0xFF);
+  return csa->wire->endTransmission(); //Returns 0:success; 1:data too long to fit in transmit buffer; 2:received NACK on transmit of address; 3:received NACK on transmit of data; 4:other error; 5:timeout
 }
 
-uint16_t readRegister(struct INA232 csa, uint8_t reg)
+uint16_t readRegister(const INA232 *csa, uint8_t reg)
 {
-  Wire1.beginTransmission(csa.address);
-  Wire1.write(reg);
-  Wire1.endTransmission();
+  csa->wire->beginTransmission(csa->address);
+  csa->wire->write(reg);
+  csa->wire->endTransmission();
 
-  Wire1.requestFrom(csa.address, (uint8_t)2);
-  uint16_t value = Wire1.read();
+  csa->wire->requestFrom(csa->address, (uint8_t)2);
+  uint16_t value = csa->wire->read();
   value <<= 8;
-  value |= Wire1.read();
+  value |= csa->wire->read();
   return value;
 }
 
-bool reset(struct INA232 csa)
+bool reset(const INA232 csa)
 {
   uint16_t value = 0xFFFF & INA232_RESET_MASK;
   return(writeRegister(&csa, INA232_CONFIG, value) == 0);
 }
 
-uint8_t setADCRange(struct INA232 csa, uint8_t value)
+uint8_t getAVG(const INA232 csa)
+{
+  //uint16_t value = readRegister(INA232_CONFIG);
+}
+
+uint8_t setAVG(const INA232 csa, uint8_t value)
+{
+  //IDK WHAT TO DO HERE UGHHHHH
+}
+
+uint16_t getADCRange(const INA232 csa)
+{
+  uint16_t config = readRegister(&csa, INA232_CONFIG);
+  config &= INA232_ADCRANGE_MASK;
+  config >>= 12;
+  return(config); //should return a 1 if ADCRange is +/-20.48mV. Returns a 0 if ADCRange is +/-81.92mV
+}
+
+uint8_t setADCRange(const INA232 csa, uint8_t value)
 {
   uint16_t mask = value;
   mask <<= 12; //bitshifts a 1 to the correct location
@@ -74,33 +92,57 @@ uint8_t setADCRange(struct INA232 csa, uint8_t value)
   return(writeRegister(&csa, INA232_CONFIG, mask));
 }
 
-uint8_t setAVG(struct INA232 csa, uint8_t value)
+float getShuntVoltage(const INA232 csa)
 {
-  //IDK WHAT TO DO HERE UGHHHHH
-}
-
-uint8_t getAVG(struct INA232 csa)
-{
-  //uint16_t value = readRegister(INA232_CONFIG);
-}
-
-uint16_t getADCRange(struct INA232 csa)
-{
-  uint16_t config = readRegister(csa, INA232_CONFIG);
-  config &= INA232_ADCRANGE_MASK;
-  config >>= 12;
-  return(config); //should return a 1 if ADCRange is +/-20.48mV. Returns a 0 if ADCRange is +/-81.92mV
-}
-
-float getShuntVoltage(struct INA232 csa)
-{
-  int16_t raw_value = readRegister(csa, INA232_SHUNT_VOLTAGE);
+  int16_t raw_value = readRegister(&csa, INA232_SHUNT_VOLTAGE);
   return(raw_value * csa.current_LSB);
 }
 
-float getBusVoltage(struct INA232 csa)
+float getBusVoltage(const INA232 csa)
 {
-  uint16_t raw_value = readRegister(csa, INA232_BUS_VOLTAGE);
+  uint16_t raw_value = readRegister(&csa, INA232_BUS_VOLTAGE);
   return(raw_value*1.6e-3); //the INA232 only has one resolution for bus voltage
+}
+
+float getPower(const INA232 csa)
+{
+  uint16_t raw_value = readRegister(&csa, INA232_POWER);
+  return(raw_value);
+}
+
+int16_t getCurrent(const INA232 csa)
+{
+  uint16_t raw_value = readRegister(&csa, INA232_CURRENT);
+  return(raw_value);
+}
+
+uint16_t getCalibration(const INA232 csa)
+{
+  uint16_t raw_value = readRegister(&csa, INA232_CALIBRATION);
+  return(raw_value);
+}
+
+uint16_t setCalibration(const INA232 csa, float rshunt)
+{
+  uint16_t shunt_cal = (0.00512/(csa.current_LSB*rshunt));
+  return(writeRegister(&csa, INA232_CALIBRATION, shunt_cal));
+}
+
+uint16_t getMaskEnable(const INA232 csa)
+{
+  uint16_t raw_value = readRegister(&csa, INA232_MASK_ENABLE);
+  return(raw_value);
+}
+
+uint16_t getAlertLimit(const INA232 csa)
+{
+  uint16_t raw_value = readRegister(&csa, INA232_ALERT_LIMIT);
+  return(raw_value);
+}
+
+uint16_t getID(const INA232 csa)
+{
+  uint16_t raw_value = readRegister(&csa, INA232_MANUFACTURER_ID);
+  return(raw_value);
 }
 #endif
