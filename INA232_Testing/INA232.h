@@ -33,6 +33,47 @@ typedef struct INA232
   TwoWire *wire;
 } INA232;
 
+#pragma pack(push,1)
+union MaskEnable
+{  
+  struct
+  {
+    unsigned LEN      : 1;  //Alert Latch Enable
+    unsigned APOL     : 1;  //Alert Polarity - 0 Normal(low open drain) - 1 Inverted(active-high)
+    unsigned OVF      : 1;  //Math Over-flow
+    unsigned CVRF     : 1;  //Conversion Ready Flag
+    unsigned AFF      : 1;  //Alert Function Flag
+    unsigned MemError : 1;  //MemError
+    unsigned Reserved : 4;  //Reserved
+    unsigned CNVR     : 1;  //Conversion Ready
+    unsigned POL      : 1;  //Power Over-limit
+    unsigned BUL      : 1;  //Bus Under-limit
+    unsigned BOL      : 1;  //Bus Over-limit
+    unsigned SUL      : 1;  //Shunt Under-limit
+    unsigned SOL      : 1;  //Shunt Over-limit
+  } registers;
+  uint16_t value;
+};
+
+union Configs
+{
+ struct
+  {
+    unsigned MODE     : 3;
+    unsigned VSHCT    : 3;
+    unsigned VBUSCT   : 3;
+    unsigned AVG      : 3;
+    unsigned ADCRANGE : 1;
+    unsigned Reserved : 2;
+    unsigned RST      : 1;
+  } registers;
+  uint16_t value;
+};
+#pragma pack(pop)
+
+#define INIT_MASKENABLE(X) MaskEnable X = {0,0,0,0,0,0,0,0,0,0,0,0,0};
+#define INIT_CONFIGS(X) Configs X = {7,4,4,0,0,2,0};
+
 TwoWire wire_callers[2] = {
   Wire,
   Wire1
@@ -66,9 +107,9 @@ bool reset(const INA232 csa)
   return(writeRegister(&csa, INA232_CONFIG, value) == 0);
 }
 
-uint8_t getAVG(const INA232 csa)
+uint16_t getAVG(const INA232 csa)
 {
-  //uint16_t value = readRegister(INA232_CONFIG);
+  //TODO: return 16 bit value, assign to struct in Main loop?
 }
 
 uint8_t setAVG(const INA232 csa, uint8_t value)
@@ -76,6 +117,10 @@ uint8_t setAVG(const INA232 csa, uint8_t value)
   //IDK WHAT TO DO HERE UGHHHHH
 }
 
+uint16_t getConfig(const INA232 csa)
+{
+  return(readRegister(&csa, INA232_CONFIG));
+}
 uint16_t getADCRange(const INA232 csa)
 {
   uint16_t config = readRegister(&csa, INA232_CONFIG);
